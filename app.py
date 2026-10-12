@@ -1,4 +1,3 @@
-
 import streamlit as st
 import smtplib
 from email.mime.text import MIMEText
@@ -11,8 +10,8 @@ st.write("ご来場ありがとうございます。必要事項を入力して�
 
 # 簡易的な登録カウンター（セッション状態を利用）
 if "registered_count" not in st.session_state:
-    st.session_state.registered_count = 0  # 現在の登録数
-    st.session_state.registered_emails = []  # 重複チェック用
+    st.session_state.registered_count = 0  
+    st.session_state.registered_emails = []  
 
 MAX_CAPACITY = 500
 current_count = st.session_state.registered_count
@@ -41,18 +40,20 @@ else:
                 # 定員を1増やす
                 st.session_state.registered_count += 1
                 ticket_number = st.session_state.registered_count
-                
-                # 登録済みメールアドレスとして記録
                 st.session_state.registered_emails.append(email)
                 
-                # メール送信の試行（Secrets未設定時は安全に画面表示のみ行われます）
+                # メール送信処理（エラーが起きても画面が止まらない設計）
+                email_sent_successfully = False
+                error_detail = ""
+                
                 try:
-                    smtp_server = "smtp.mail.yahoo.co.jp"
-                    smtp_port = 587
-                    sender_email = st.secrets["YAHOO_EMAIL"]
-                    sender_password = st.secrets["YAHOO_PASSWORD"]
-                    
-                    msg_text = f"""{name} 様
+                    if "YAHOO_EMAIL" in st.secrets and "YAHOO_PASSWORD" in st.secrets:
+                        smtp_server = "smtp.mail.yahoo.co.jp"
+                        smtp_port = 587
+                        sender_email = st.secrets["YAHOO_EMAIL"]
+                        sender_password = st.secrets["YAHOO_PASSWORD"]
+                        
+                        msg_text = f"""{name} 様
 
 この度は「地域貢献講演会（南大阪支部）」にお申し込みいただき、誠にありがとうございます。
 以下の内容でご登録を承りました。
@@ -70,21 +71,30 @@ else:
 南大阪支部 (072-958-3005)
 --------------------------------------------------"""
 
-                    msg = MIMEText(msg_text, "plain", "utf-8")
-                    msg["Subject"] = "【地域貢献講演会】受付完了のお知らせ（南大阪支部）"
-                    msg["From"] = formataddr(("南大阪支部 事務局", sender_email))
-                    msg["To"] = email
+                        msg = MIMEText(msg_text, "plain", "utf-8")
+                        msg["Subject"] = "【地域貢献講演会】受付完了のお知らせ（南大阪支部）"
+                        msg["From"] = formataddr(("南大阪支部 事務局", sender_email))
+                        msg["To"] = email
 
-                    with smtplib.SMTP(smtp_server, smtp_port) as server:
-                        server.starttls()
-                        server.login(sender_email, sender_password)
-                        server.send_message(msg)
-                    
-                    email_status = "📩 確認メールを送信しました。"
-                except Exception:
-                    email_status = "（※メール送信設定は未設定のため、画面表示のみで行いました）"
+                        with smtplib.SMTP(smtp_server, smtp_port) as server:
+                            server.starttls()
+                            server.login(sender_email, sender_password)
+                            server.send_message(msg)
+                        
+                        email_sent_successfully = True
+                    else:
+                        error_detail = "Secretsに設定が見つかりません"
+                except Exception as e:
+                    error_detail = str(e)
 
+                # 結果の画面表示
                 st.success(f"🎉 受付が完了しました！")
                 st.markdown(f"### 【あなたの受付番号】 **第 {ticket_number} 号**")
                 st.write(f"**{name} 様**（{company if company else '一般'}）のご登録を承りました。")
-                st.info(f"{email_status}\n\n【お問い合わせ先】南大阪支部 (072-958-3005)")
+                
+                if email_sent_successfully:
+                    st.success(f"📩 確認メールを **{email}** 宛てに送信しました！")
+                else:
+                    st.warning(f"⚠️ メール送信は行われませんでしたが、受付は完了しました。（詳細: {error_detail}）")
+                
+                st.info("【お問い合わせ先】南大阪支部 (072-958-3005)")
