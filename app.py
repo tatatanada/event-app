@@ -1,3 +1,4 @@
+
 import streamlit as st
 import smtplib
 from email.mime.text import MIMEText
@@ -44,7 +45,7 @@ else:
                 # 登録済みメールアドレスとして記録
                 st.session_state.registered_emails.append(email)
                 
-                # メール送信の試行（Secretsが設定されていない場合は画面表示のみで安全に動作します）
+                # メール送信の試行（Secrets未設定時は安全に画面表示のみ行われます）
                 try:
                     smtp_server = "smtp.mail.yahoo.co.jp"
                     smtp_port = 587
